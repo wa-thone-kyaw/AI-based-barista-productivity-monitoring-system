@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 2
+names: ['cup', 'staff']
+
+roboflow:
+  workspace: test-6bkta
+  project: barista-monitoring-system-v
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/test-6bkta/barista-monitoring-system-v/dataset/1
