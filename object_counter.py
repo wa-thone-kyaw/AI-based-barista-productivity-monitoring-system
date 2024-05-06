@@ -1,5 +1,3 @@
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-
 from collections import defaultdict
 import cv2
 from shapely.geometry import LineString, Point, Polygon
@@ -181,7 +179,9 @@ class ObjectCounter:
                 if cls not in [
                     0,
                     3,
-                ]:  # Exclude classes other than persons (0) and cups (3)
+                    4,
+                    5,
+                ]:  # Exclude classes other than persons (0), cups (3), staff-male (4), and staff-female (5)
                     continue
 
                 # Draw bounding box

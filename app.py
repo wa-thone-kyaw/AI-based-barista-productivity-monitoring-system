@@ -1,28 +1,23 @@
+# app.py
+
 from ultralytics import YOLO
 from object_counter import ObjectCounter
 import cv2
 
-model = YOLO("yolov8n.pt")
-cap = cv2.VideoCapture("Sequence01.mp4")
+model = YOLO("yolov8m.pt")
+cap = cv2.VideoCapture("myouneed.mp4")
 assert cap.isOpened(), "Error reading video file"
-w, h, fps = (
-    int(cap.get(x))
-    for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS)
-)
-
-# Define region points
-region_points = [(20, 400), (1080, 404), (1080, 360), (20, 360)]
 
 # Video writer
 video_writer = cv2.VideoWriter(
-    "object_counting_output.avi", cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h)
+    "object_counting_output.avi", cv2.VideoWriter_fourcc(*"mp4v"), 30, (1920, 1080)
 )
 
 # Init Object Counter
 counter = ObjectCounter()
 counter.set_args(
     view_img=True,
-    reg_pts=region_points,
+    reg_pts=[(50, 400), (80, 400), (80, 1080), (50, 1080)],
     classes_names=model.names,
     draw_tracks=True,
     line_thickness=2,
