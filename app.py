@@ -8,13 +8,14 @@ def main():
     model = YOLO("bestv6.pt")
 
     # Open video capture
-    cap = cv2.VideoCapture("broyouneedfemale.mp4")
+    cap = cv2.VideoCapture("lastyouneed.mp4")
 
-    # for output video .
+    # for output video
     w, h, fps = (
         int(cap.get(x))
         for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS)
     )
+
     # Check if video opened successfully
     if not cap.isOpened():
         print("Error opening video file.")
@@ -56,6 +57,11 @@ def main():
 
             im0 = counter.start_counting(im0, tracks)
             video_writer.write(im0)
+
+            # Check for 'q' key press to stop the application
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                break
 
     except Exception as e:
         print(f"An error occurred: {e}")

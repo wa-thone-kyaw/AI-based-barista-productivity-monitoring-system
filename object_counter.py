@@ -82,11 +82,15 @@ class ObjectCounter:
 
         # Region and line selection
         if len(reg_pts) == 2:
-            print("Line Counter Initiated.")
+            print(
+                "AI-Based Barista Productivity Monitoring System Line Counter Initiated."
+            )
             self.reg_pts = reg_pts
             self.counting_region = LineString(self.reg_pts)
         elif len(reg_pts) >= 3:
-            print("Polygon Counter Initiated.")
+            print(
+                "AI-Based Barista Productivity Monitoring System Polygon Counter Initiated."
+            )
             self.reg_pts = reg_pts
             self.counting_region = Polygon(self.reg_pts)
         else:
@@ -150,7 +154,7 @@ class ObjectCounter:
                 # Draw bounding box
                 self.annotator.box_label(
                     box,
-                    label=f"{self.names[cls]}#{track_id}",
+                    label=f"{self.names[cls]}",
                     color=colors(int(track_id), True),
                 )
 
