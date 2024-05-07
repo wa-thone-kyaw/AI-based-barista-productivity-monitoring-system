@@ -30,7 +30,7 @@ class ObjectCounter:
         self.view_in_counts = True
         self.view_out_counts = True
 
-        self.names = None  # Classes names
+        self.names = {}  # Classes names
         self.annotator = None  # Annotator
         self.window_name = "AI-Based Barista Productivity Monitoring System"
 
@@ -70,28 +70,9 @@ class ObjectCounter:
         track_color=None,
         region_thickness=5,
         line_dist_thresh=15,
-        cls_txtdisplay_gap=50,
+        cls_txtdisplay_gap=50,  # Display gap between each class count
     ):
-        """
-        Configures the Counter's image, bounding box line thickness, and counting region points.
 
-        Args:
-            line_thickness (int): Line thickness for bounding boxes.
-            view_img (bool): Flag to control whether to display the video stream.
-            view_in_counts (bool): Flag to control whether to display the incounts on video stream.
-            view_out_counts (bool): Flag to control whether to display the outcounts on video stream.
-            reg_pts (list): Initial list of points defining the counting region.
-            classes_names (dict): Classes names
-            track_thickness (int): Track thickness
-            draw_tracks (Bool): draw tracks
-            count_txt_color (RGB color): count text color value
-            count_bg_color (RGB color): count highlighter line color
-            count_reg_color (RGB color): Color of object counting region
-            track_color (RGB color): color for tracks
-            region_thickness (int): Object counting Region thickness
-            line_dist_thresh (int): Euclidean Distance threshold for line counter
-            cls_txtdisplay_gap (int): Display gap between each class count
-        """
         self.tf = line_thickness
         self.view_img = view_img
         self.view_in_counts = view_in_counts
@@ -125,17 +106,7 @@ class ObjectCounter:
         self.cls_txtdisplay_gap = cls_txtdisplay_gap
 
     def mouse_event_for_region(self, event, x, y, flags, params):
-        """
-        This function is designed to move region with mouse events in a real-time video stream.
 
-        Args:
-            event (int): The type of mouse event (e.g., cv2.EVENT_MOUSEMOVE, cv2.EVENT_LBUTTONDOWN, etc.).
-            x (int): The x-coordinate of the mouse pointer.
-            y (int): The y-coordinate of the mouse pointer.
-            flags (int): Any flags associated with the event (e.g., cv2.EVENT_FLAG_CTRLKEY,
-                cv2.EVENT_FLAG_SHIFTKEY, etc.).
-            params (dict): Additional parameters you may want to pass to the function.
-        """
         if event == cv2.EVENT_LBUTTONDOWN:
             for i, point in enumerate(self.reg_pts):
                 if (
@@ -176,14 +147,6 @@ class ObjectCounter:
 
             # Extract tracks
             for box, track_id, cls in zip(boxes, track_ids, clss):
-                if cls not in [
-                    0,
-                    3,
-                    4,
-                    5,
-                ]:  # Exclude classes other than persons (0), cups (3), staff-male (4), and staff-female (5)
-                    continue
-
                 # Draw bounding box
                 self.annotator.box_label(
                     box,
@@ -280,12 +243,7 @@ class ObjectCounter:
 
     def start_counting(self, im0, tracks):
         """
-        Main function to start the object counting process.
-
-        Args:
-            im0 (ndarray): Current frame from the video stream.
-            tracks (list): List of tracks obtained from the object tracking process.
-        """
+        Main function to start the object counting process."""
         self.im0 = im0  # store image
         self.extract_and_process_tracks(tracks)  # draw region even if no objects
 
