@@ -1,3 +1,5 @@
+# app.py
+
 from ultralytics import YOLO
 from object_counter import ObjectCounter
 import cv2

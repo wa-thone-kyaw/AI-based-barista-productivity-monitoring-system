@@ -38,7 +38,7 @@ class ObjectCounter:
         self.in_counts = 0
         self.out_counts = 0
         self.count_ids = []
-        self.class_wise_count = {}
+        self.class_wise_count = defaultdict(lambda: defaultdict(int))
         self.count_txt_thickness = 0
         self.count_txt_color = (255, 255, 255)
         self.count_bg_color = (255, 255, 255)
@@ -152,15 +152,19 @@ class ObjectCounter:
             # Extract tracks
             for box, track_id, cls in zip(boxes, track_ids, clss):
                 # Draw bounding box
+                if self.names[cls] in ["staff-male", "staff-female"]:
+                    count_label = f"{self.names[cls]} -> cups {self.class_wise_count[self.names[cls]]['Total']}"
+                else:
+                    count_label = f"{self.names[cls]}"
                 self.annotator.box_label(
                     box,
-                    label=f"{self.names[cls]}",
+                    label=count_label,
                     color=colors(int(track_id), True),
                 )
 
                 # Store class info
                 if self.names[cls] not in self.class_wise_count:
-                    self.class_wise_count[self.names[cls]] = {"IN": 0, "OUT": 0}
+                    self.class_wise_count[self.names[cls]] = defaultdict(int)
 
                 # Draw Tracks
                 track_line = self.track_history[track_id]
@@ -204,9 +208,19 @@ class ObjectCounter:
                         ) > 0:
                             self.in_counts += 1
                             self.class_wise_count[self.names[cls]]["IN"] += 1
+                            self.class_wise_count[self.names[cls]]["Total"] += 1
+                            # Update staff-female and staff-male counts
+                            if self.names[cls] == "cup":
+                                self.class_wise_count["staff-female"]["Total"] += 1
+                                self.class_wise_count["staff-male"]["Total"] += 1
                         else:
                             self.out_counts += 1
                             self.class_wise_count[self.names[cls]]["OUT"] += 1
+                            self.class_wise_count[self.names[cls]]["Total"] -= 1
+                            # Update staff-female and staff-male counts
+                            if self.names[cls] == "cup":
+                                self.class_wise_count["staff-female"]["Total"] -= 1
+                                self.class_wise_count["staff-male"]["Total"] -= 1
 
         labels_dict = {}
 
