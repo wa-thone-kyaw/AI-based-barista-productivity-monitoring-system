@@ -10,7 +10,7 @@ def main():
     model = YOLO("bestv6.pt")
 
     # Open video capture
-    cap = cv2.VideoCapture("lastyouneed.mp4")
+    cap = cv2.VideoCapture("myouneed.mp4")
 
     # for output video
     w, h, fps = (

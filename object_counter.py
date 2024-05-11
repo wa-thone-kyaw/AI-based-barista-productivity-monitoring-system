@@ -149,6 +149,17 @@ class ObjectCounter:
             clss = tracks[0].boxes.cls.cpu().tolist()
             track_ids = tracks[0].boxes.id.int().cpu().tolist()
 
+            # Calculate the centroid of each bounding box
+            centroids = []
+            for box in boxes:
+                centroid = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
+                centroids.append(centroid)
+
+            # Find the centroid that is closest to the polygon
+            nearest_centroid = min(
+                centroids, key=lambda x: self.counting_region.distance(Point(x))
+            )
+
             # Extract tracks
             for box, track_id, cls in zip(boxes, track_ids, clss):
                 # Draw bounding box
@@ -193,7 +204,9 @@ class ObjectCounter:
                 )
 
                 # Count objects in any polygon
-                if len(self.reg_pts) >= 3:
+                if len(self.reg_pts) >= 3 and Point(nearest_centroid).within(
+                    self.counting_region
+                ):
                     is_inside = self.counting_region.contains(Point(track_line[-1]))
 
                     if (
@@ -209,18 +222,16 @@ class ObjectCounter:
                             self.in_counts += 1
                             self.class_wise_count[self.names[cls]]["IN"] += 1
                             self.class_wise_count[self.names[cls]]["Total"] += 1
-                            # Update staff-female and staff-male counts
+                            # Update staff-female count
                             if self.names[cls] == "cup":
                                 self.class_wise_count["staff-female"]["Total"] += 1
-                                self.class_wise_count["staff-male"]["Total"] += 1
                         else:
                             self.out_counts += 1
                             self.class_wise_count[self.names[cls]]["OUT"] += 1
                             self.class_wise_count[self.names[cls]]["Total"] -= 1
-                            # Update staff-female and staff-male counts
+                            # Update staff-female count
                             if self.names[cls] == "cup":
                                 self.class_wise_count["staff-female"]["Total"] -= 1
-                                self.class_wise_count["staff-male"]["Total"] -= 1
 
         labels_dict = {}
 
