@@ -10,7 +10,7 @@ def main():
     model = YOLO("bestv6.pt")
 
     # Open video capture
-    cap = cv2.VideoCapture("myouneed.mp4")
+    cap = cv2.VideoCapture("lastyouneed.mp4")
 
     # for output video
     w, h, fps = (
@@ -36,11 +36,11 @@ def main():
     counter.set_args(
         view_img=True,  # Optional: Set to False to disable frame display
         reg_pts=[
-            (50, 400),
-            (80, 400),
-            (80, 1080),
-            (50, 1080),
-        ],  # Define counting region
+            (50, int(0.5 * h)),
+            (80, int(0.5 * h)),
+            (80, h),
+            (50, h),
+        ],
         classes_names=model.names,
         draw_tracks=True,
         line_thickness=2,
@@ -60,7 +60,6 @@ def main():
             im0 = counter.start_counting(im0, tracks)
             video_writer.write(im0)
 
-            # Check for 'q' key press to stop the application
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
                 break
