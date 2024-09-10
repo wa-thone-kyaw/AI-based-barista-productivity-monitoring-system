@@ -1,6 +1,7 @@
 from collections import defaultdict
 import cv2
-from shapely.geometry import LineString, Point, Polygon
+import numpy as np
+from shapely.geometry import Point, Polygon, LineString
 from ultralytics.utils.checks import check_imshow, check_requirements
 from ultralytics.utils.plotting import Annotator, colors
 
@@ -37,7 +38,7 @@ class ObjectCounter:
         # Object counting Information
         self.in_counts = 0
         self.out_counts = 0
-        self.count_ids = []
+        self.counted_cup_ids = set()  # Use a set to track counted cup IDs
         self.class_wise_count = defaultdict(lambda: defaultdict(int))
         self.count_txt_thickness = 0
         self.count_txt_color = (255, 255, 255)
@@ -51,28 +52,32 @@ class ObjectCounter:
         self.draw_tracks = False
         self.track_color = None
 
-        # Check if environment support imshow
+        # Check if environment supports imshow
         self.env_check = check_imshow(warn=True)
+        self.yttsn_line = [(0, 20), (1280, 20)]  # Coordinates for the top line (yttsn)
+        self.wpptt_line = [
+            (0, 700),
+            (1280, 700),
+        ]  # Coordinates for the bottom line (wpptt)
 
     def set_args(
         self,
         classes_names,
         reg_pts,
-        count_reg_color=(255, 0, 255),
+        count_reg_color=(0, 0, 0),
         count_txt_color=(0, 0, 0),
         count_bg_color=(255, 255, 255),
-        line_thickness=2,
-        track_thickness=2,
+        line_thickness=1,
+        track_thickness=1,
         view_img=False,
         view_in_counts=True,
         view_out_counts=True,
         draw_tracks=False,
         track_color=None,
-        region_thickness=5,
+        region_thickness=1,
         line_dist_thresh=15,
         cls_txtdisplay_gap=50,  # Display gap between each class count
     ):
-
         self.tf = line_thickness
         self.view_img = view_img
         self.view_in_counts = view_in_counts
@@ -86,7 +91,7 @@ class ObjectCounter:
                 "AI-Based Barista Productivity Monitoring System Line Counter Initiated."
             )
             self.reg_pts = reg_pts
-            self.counting_region = LineString(self.reg_pts)
+            self.counting_region = Polygon(self.reg_pts)
         elif len(reg_pts) >= 3:
             print(
                 "AI-Based Barista Productivity Monitoring System Polygon Counter Initiated."
@@ -98,7 +103,7 @@ class ObjectCounter:
                 "Invalid Region points provided, region_points must be 2 for lines or >= 3 for polygons."
             )
             print("Using Line Counter Now")
-            self.counting_region = LineString(self.reg_pts)
+            self.counting_region = Polygon(self.reg_pts)
 
         self.names = classes_names
         self.track_color = track_color
@@ -110,7 +115,6 @@ class ObjectCounter:
         self.cls_txtdisplay_gap = cls_txtdisplay_gap
 
     def mouse_event_for_region(self, event, x, y, flags, params):
-
         if event == cv2.EVENT_LBUTTONDOWN:
             for i, point in enumerate(self.reg_pts):
                 if (
@@ -125,10 +129,7 @@ class ObjectCounter:
         elif event == cv2.EVENT_MOUSEMOVE:
             if self.is_drawing and self.selected_point is not None:
                 self.reg_pts[self.selected_point] = (x, y)
-                if len(self.reg_pts) == 2:
-                    self.counting_region = LineString(self.reg_pts)
-                else:
-                    self.counting_region = Polygon(self.reg_pts)
+                self.counting_region = Polygon(self.reg_pts)
 
         elif event == cv2.EVENT_LBUTTONUP:
             self.is_drawing = False
@@ -136,7 +137,6 @@ class ObjectCounter:
 
     def extract_and_process_tracks(self, tracks):
         """Extracts and processes tracks for object counting in a video stream."""
-
         # Annotator Init and region drawing
         self.annotator = Annotator(self.im0, self.tf, self.names)
 
@@ -146,6 +146,8 @@ class ObjectCounter:
             color=self.region_color,
             thickness=self.region_thickness,
         )
+        self.draw_region(self.yttsn_line, (0, 0, 0, 0), self.region_thickness)
+        self.draw_region(self.wpptt_line, (0, 0, 0, 0), self.region_thickness)
 
         if tracks[0].boxes.id is not None:
             boxes = tracks[0].boxes.xyxy.cpu()
@@ -160,7 +162,7 @@ class ObjectCounter:
 
             # Extract tracks
             person_centroids = {}
-            cup_centroids = []
+            cup_centroids = {}
 
             for box, track_id, cls in zip(boxes, track_ids, clss):
                 # Draw bounding box
@@ -171,7 +173,10 @@ class ObjectCounter:
                     )
                     count_label = f"{self.names[cls]} -> cups {self.class_wise_count[self.names[cls]]['Total']}"
                 elif self.names[cls] == "cup":
-                    cup_centroids.append(((box[0] + box[2]) / 2, (box[1] + box[3]) / 2))
+                    cup_centroids[track_id] = (
+                        (box[0] + box[2]) / 2,
+                        (box[1] + box[3]) / 2,
+                    )
                     count_label = f"{self.names[cls]}"
 
                 self.annotator.box_label(
@@ -204,34 +209,37 @@ class ObjectCounter:
                         track_thickness=self.track_thickness,
                     )
 
-            # Reset count_ids for this frame
-            self.count_ids = []
+            # Define LineString objects for the lines
+        yttsn_line = LineString(self.yttsn_line)
+        wpptt_line = LineString(self.wpptt_line)
 
-            # For each cup, find the closest person and increment their count if the cup is in the region
-            for cup_centroid in cup_centroids:
-                if self.counting_region.contains(Point(cup_centroid)):
-                    nearest_person = None
-                    min_distance = float("inf")
-                    for person_id, person_centroid in person_centroids.items():
-                        distance = Point(cup_centroid).distance(Point(person_centroid))
-                        if distance < min_distance:
-                            min_distance = distance
-                            nearest_person = person_id
+        # For each cup, determine which line it is closer to and update counts
+        for cup_id, cup_centroid in cup_centroids.items():
+            if self.counting_region.contains(Point(cup_centroid)):
+                if cup_id not in self.counted_cup_ids:
+                    # Calculate distances to both lines
+                    distance_to_yttsn = yttsn_line.distance(Point(cup_centroid))
+                    distance_to_wpptt = wpptt_line.distance(Point(cup_centroid))
 
-                    if nearest_person is not None:
-                        if nearest_person not in self.count_ids:
-                            self.count_ids.append(nearest_person)
-                            person_class = [
-                                cls
-                                for track_id, cls in zip(track_ids, clss)
-                                if track_id == nearest_person
-                            ][0]
-                            self.class_wise_count[self.names[person_class]]["IN"] += 1
-                            self.class_wise_count[self.names[person_class]][
-                                "Total"
-                            ] += 1
+                    if distance_to_yttsn < distance_to_wpptt:
+                        self.counted_cup_ids.add(cup_id)  # Mark this cup as counted
+                        self.class_wise_count["yttsn"]["IN"] += 1
+                        self.class_wise_count["yttsn"]["Total"] += 1
+                    else:
+                        self.counted_cup_ids.add(cup_id)  # Mark this cup as counted
+                        self.class_wise_count["wpptt"]["IN"] += 1
+                        self.class_wise_count["wpptt"]["Total"] += 1
 
         return self.annotator.result()
+
+    def draw_region(self, pts, color, thickness):
+        """Draws a polygon or line region on the image."""
+        if len(pts) >= 2:
+            pts = np.array(pts, np.int32)
+            pts = pts.reshape((-1, 1, 2))
+            cv2.polylines(
+                self.im0, [pts], isClosed=False, color=color, thickness=thickness
+            )
 
     def start_counting(self, im0, tracks):
         self.im0 = im0
@@ -241,35 +249,7 @@ class ObjectCounter:
             # View Image
             cv2.imshow(self.window_name, self.im0)
             cv2.setMouseCallback(self.window_name, self.mouse_event_for_region)
+            if cv2.waitKey(1) == ord("q"):  # q to quit
+                raise StopIteration
 
-        # Write Class-wise Count on the video
-        line_height = 50
-        y_offset = 50
-        x_offset = 50
-
-        # Draw counts for "yttsn"
-        count_txt = f"yttsn Cups Served: {self.class_wise_count['yttsn']['Total']}"
-        cv2.putText(
-            self.im0,
-            count_txt,
-            (x_offset, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            self.fontsize,
-            self.count_txt_color,
-            self.tf,
-        )
-
-        y_offset += line_height
-
-        # Draw counts for "wpptt"
-        count_txt = f"wpptt Cups Served: {self.class_wise_count['wpptt']['Total']}"
-        cv2.putText(
-            self.im0,
-            count_txt,
-            (x_offset, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            self.fontsize,
-            self.count_txt_color,
-            self.tf,
-        )
         return self.im0

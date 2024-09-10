@@ -6,11 +6,9 @@ import torch
 
 def main():
     # Load model
-    model = YOLO("besthtila2.pt").to("cuda" if torch.cuda.is_available() else "cpu")
-
+    model = YOLO("npt-best.pt").to("cuda" if torch.cuda.is_available() else "cpu")
     # Open video capture
-    cap = cv2.VideoCapture("mm-pjtest.mp4")
-
+    cap = cv2.VideoCapture("final.mp4")
     # For output video
     w, h, fps = (
         int(cap.get(x))
@@ -35,10 +33,10 @@ def main():
     counter.set_args(
         view_img=True,  # Optional: Set to False to disable frame display
         reg_pts=[
-            (50, int(0.5 * h)),
-            (80, int(0.5 * h)),
-            (80, h),
-            (50, h),
+            (300, 100),  # Top-left
+            (550, 20),  # Top-right
+            (650, 700),  # Bottom-right
+            (350, 650),  # Bottom-left
         ],
         classes_names=model.names,
         draw_tracks=True,
