@@ -46,7 +46,9 @@ class ObjectCounter:
         self.cls_txtdisplay_gap = 50
         self.fontsize = 0.6
 
-        # Tracks info
+        self.total_cups_count = (
+            0  # new attribute to store total cup count        # Tracks info
+        )
         self.track_history = defaultdict(list)
         self.track_thickness = 2
         self.draw_tracks = False
@@ -153,7 +155,7 @@ class ObjectCounter:
             boxes = tracks[0].boxes.xyxy.cpu()
             clss = tracks[0].boxes.cls.cpu().tolist()
             track_ids = tracks[0].boxes.id.int().cpu().tolist()
-
+            confs = tracks[0].boxes.conf.cpu().tolist()
             # Calculate the centroid of each bounding box
             centroids = []
             for box in boxes:
@@ -164,20 +166,21 @@ class ObjectCounter:
             person_centroids = {}
             cup_centroids = {}
 
-            for box, track_id, cls in zip(boxes, track_ids, clss):
+            for box, track_id, cls, conf in zip(boxes, track_ids, clss, confs):
                 # Draw bounding box
+                confidence_score = f"{conf:.2f}"
                 if self.names[cls] in ["yttsn", "wpptt"]:
                     person_centroids[track_id] = (
                         (box[0] + box[2]) / 2,
                         (box[1] + box[3]) / 2,
                     )
-                    count_label = f"{self.names[cls]} -> cups {self.class_wise_count[self.names[cls]]['Total']}"
+                    count_label = f"{self.names[cls]} ({confidence_score}) -> cups {self.class_wise_count[self.names[cls]]['Total']}"
                 elif self.names[cls] == "cup":
                     cup_centroids[track_id] = (
                         (box[0] + box[2]) / 2,
                         (box[1] + box[3]) / 2,
                     )
-                    count_label = f"{self.names[cls]}"
+                    count_label = f"{self.names[cls]} ({confidence_score})"
 
                 self.annotator.box_label(
                     box,
@@ -214,6 +217,7 @@ class ObjectCounter:
         wpptt_line = LineString(self.wpptt_line)
 
         # For each cup, determine which line it is closer to and update counts
+        total_cups_in_polygon = 0  # initialize total cup count
         for cup_id, cup_centroid in cup_centroids.items():
             if self.counting_region.contains(Point(cup_centroid)):
                 if cup_id not in self.counted_cup_ids:
@@ -230,6 +234,20 @@ class ObjectCounter:
                         self.class_wise_count["wpptt"]["IN"] += 1
                         self.class_wise_count["wpptt"]["Total"] += 1
 
+            self.total_cups_count = (
+                self.class_wise_count["yttsn"]["Total"]
+                + self.class_wise_count["wpptt"]["Total"]
+            )
+        cv2.putText(
+            self.im0,
+            f"Total Cups: {self.total_cups_count}",
+            (50, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
         return self.annotator.result()
 
     def draw_region(self, pts, color, thickness):

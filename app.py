@@ -6,7 +6,7 @@ import torch
 
 def main():
     # Load model
-    model = YOLO("npt-best.pt").to("cuda" if torch.cuda.is_available() else "cpu")
+    model = YOLO("ai-best.pt").to("cuda" if torch.cuda.is_available() else "cpu")
     # Open video capture
     cap = cv2.VideoCapture("final.mp4")
     # For output video
